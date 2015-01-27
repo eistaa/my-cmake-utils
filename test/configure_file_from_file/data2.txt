@@ -6,4 +6,5 @@ it has data
 
 
 separated be blanks; and some semi-colons in the text;
+and here are some backslashes\n\0 \\\\
 

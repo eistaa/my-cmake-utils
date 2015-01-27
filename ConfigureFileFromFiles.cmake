@@ -72,13 +72,17 @@ include(CMakeParseArguments)
 #
 # * Option parameters:
 #
-#   ESCAPE_QUOTES        : Escape double quotes (") in the files in READ_FROM.
+#   ESCAPE_BACKSLASH     : Escape backslash characters (\) in the files in
+#                          READ_FROM.
+#   ESCAPE_QUOTES        : Escape double quote characters (") in the files in
+#                          READ_FROM.
 #   PRESERVE_BLANK_LINES : Do not prepend/append to blank lines.
 #
 function(configure_file_from_files)  # {{{*
 
     # parse arguments
-    set(options ESCAPE_QUOTES PRESERVE_BLANK_LINES)
+    set(options ESCAPE_BACKSLASH ESCAPE_QUOTES
+                PRESERVE_BLANK_LINES)
     set(oneValueArgs INPUT OUTPUT)
     set(multiValueArgs READ_FROM TOKEN PREFIX SUFFIX)
     cmake_parse_arguments(CFFF "${options}"
@@ -101,6 +105,9 @@ function(configure_file_from_files)  # {{{*
 
         # handle extra args
         set(optional_args "SUB_CMD")
+        if(${CFFF_ESCAPE_BACKSLASH})
+            set(optional_args ${optional_args} "ESCAPE_BACKSLASH")
+        endif(${CFFF_ESCAPE_BACKSLASH})
         if(${CFFF_ESCAPE_QUOTES})
             set(optional_args ${optional_args} "ESCAPE_QUOTES")
         endif(${CFFF_ESCAPE_QUOTES})
@@ -165,14 +172,16 @@ endfunction(configure_file_from_files)  # *}}}
 #
 # * Option parameters:
 #
-#   ESCAPE_QUOTES        : Escape double quotes (") in READ_FROM.
+#   ESCAPE_BACKSLASH     : Escape backslash characters (\) in READ_FROM.
+#   ESCAPE_QUOTES        : Escape double quote characters (") in READ_FROM.
 #   PRESERVE_BLANK_LINES : Do not prepend/append to blank lines.
 #   SUB_CMD              : (Internal) Prepend an astrix to status lines.
 #
 function(process_file_surround)  # {{{*
 
     # parse arguments
-    set(options ESCAPE_QUOTES PRESERVE_BLANK_LINES SUB_CMD)
+    set(options ESCAPE_BACKSLASH ESCAPE_QUOTES
+                PRESERVE_BLANK_LINES SUB_CMD)
     set(oneValueArgs READ_FROM VARIABLE PREFIX SUFFIX)
     set(multiValueArgs )
     cmake_parse_arguments(PFS "${options}"
@@ -195,6 +204,9 @@ function(process_file_surround)  # {{{*
     file(READ ${PFS_READ_FROM} lines)
 
     # escape characters
+    if(${PFS_ESCAPE_BACKSLASH})  # NB! Do this first!
+        string(REPLACE "\\" "\\\\" lines "${lines}")
+    endif(${PFS_ESCAPE_BACKSLASH})
     string(REPLACE ";" "\\;" lines "${lines}")  # protect ; in file
     if(${PFS_ESCAPE_QUOTES})
         string(REGEX REPLACE "\"" "\\\\\"" lines "${lines}")
