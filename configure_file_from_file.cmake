@@ -1,6 +1,80 @@
+# {{{* - LICENSE --------------------------------------------------------------
+#
+# Copyright (c) 2015 -- Eivind Storm Aarnæs, eistaa
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# 1. Redistributions of source code must retain the above copyright notice,
+#    this list of conditions and the following disclaimer.
+#
+# 2. Redistributions in binary form must reproduce the above copyright notice,
+#    this list of conditions and the following disclaimer in the documentation
+#    and/or other materials provided with the distribution.
+#
+# 3. Neither the name of the copyright holder nor the names of its contributors
+#    may be used to endorse or promote products derived from this software
+#    without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+# LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+#
+# ------------------------------------------------------------------------ *}}}
+
+cmake_minimum_required(VERSION 2.8)
 
 include(CMakeParseArguments)
 
+# Function: configure_file_from_files  {{{*
+
+# Function: configure_file_from_files
+#  ->  Configure a file using processed data from a set of files.
+#
+# Read and process a set of files, using the data from the files to configure
+# another given file. The processing consist of prepending and appending text
+# to the lines read, the text is given on a per file basis.
+#
+# NB: The four multi value parameters READ_FROM, TOKEN, PREFIX and SUFFIX
+#     should all have the same number of elements. If they differ, a fatal
+#     error is produced.
+#
+# PARAMETERS
+# ----------
+#
+# * Single value parameters:
+#
+#   INPUT  : Path to the file to configure.
+#   OUTPUT : Path to write the configured file to.
+#
+# * Multi value parameters, (all should have the same number of values):
+#
+#   READ_FROM : List of files to read from.
+#   TOKEN     : List of @-tokens in OUTPUT to match to the files in READ_FROM. 
+#               Token #i is matched to file #i in READ_FROM.
+#   PREFIX    : List of prefixes to prepend to each line in a file from
+#               READ_FROM. Prefix #i in this list is used with file #i in
+#               READ_FROM.
+#               The text '<SEMI-COLON> is replaced by an actual ';'.
+#   SUFFIX    : Similar to PREFIX, only difference is that these are suffixes
+#               appended to each line in a file from READ_FROM. Suffix #i in
+#               this list is used with file #i in READ_FROM.
+#               The text '<SEMI-COLON> is replaced by an actual ';'.
+#
+# * Option parameters:
+#
+#   ESCAPE_QUOTES        : Escape double quotes (") in the files in READ_FROM.
+#   PRESERVE_BLANK_LINES : Do not prepend/append to blank lines.
+#
 function(configure_file_from_files)  # {{{*
 
     # parse arguments
@@ -21,9 +95,9 @@ function(configure_file_from_files)  # {{{*
     list(LENGTH CFFF_SUFFIX    num_suffixes)
 
     # equal number of arguments
-    if((${num_from_files} EQUAL ${num_tokens}) AND
-            (${num_tokens} EQUAL ${num_prefixes}) AND
-            (${num_prefixes} EQUAL ${num_suffixes}))
+    if(${num_from_files} EQUAL ${num_tokens} AND
+            ${num_tokens} EQUAL ${num_prefixes} AND
+            ${num_prefixes} EQUAL ${num_suffixes})
 
         # handle extra args
         set(optional_args "SUB_CMD")
@@ -47,7 +121,7 @@ function(configure_file_from_files)  # {{{*
 
                 # read the file to a variable
                 process_file_surround(READ_FROM "${read_from}"
-                                      TOKEN "${token}"
+                                      VARIABLE "${token}"
                                       PREFIX "${prefix}"
                                       SUFFIX "${suffix}"
                                       ${optional_args})
@@ -56,22 +130,50 @@ function(configure_file_from_files)  # {{{*
 
         # configure file
         configure_file(${CFFF_INPUT} ${CFFF_OUTPUT})
-    else((${num_from_files} EQUAL ${num_tokens}) AND
-            (${num_tokens} EQUAL ${num_prefixes}) AND
-            (${num_prefixes} EQUAL ${num_suffixes}))
-        message(FATAL_ERROR
-                "\nThere must be the same number of files, tokens, prefixes and suffixes.\n")
-    endif((${num_from_files} EQUAL ${num_tokens}) AND
-            (${num_tokens} EQUAL ${num_prefixes}) AND
-            (${num_prefixes} EQUAL ${num_suffixes}))
+    else(${num_from_files} EQUAL ${num_tokens} AND
+            ${num_tokens} EQUAL ${num_prefixes} AND
+            ${num_prefixes} EQUAL ${num_suffixes})
+        message(FATAL_ERROR "
+There must be the same number of files, tokens, prefixes and suffixes.
+")
+    endif(${num_from_files} EQUAL ${num_tokens} AND
+            ${num_tokens} EQUAL ${num_prefixes} AND
+            ${num_prefixes} EQUAL ${num_suffixes})
 
 endfunction(configure_file_from_files)  # *}}}
 
+# *}}}
+
+# Function: process_file_surround  {{{*
+
+# Function: process_file_surround
+#  ->  Read a file into a variable, surrounding each line with a prefix/suffix.
+#
+# Read a file into a variable while prepending and appending text to each line.
+#
+# PARAMETERS
+# ----------
+# 
+# * Single value parameters:
+#
+#   READ_FROM : File to read from.
+#   VARIABLE  : Variable to save the processed file to.
+#   PREFIX    : Prefix to prepend to each line in READ_FROM. The text
+#               '<SEMI-COLON>' is replaced by an actual ';'.
+#   SUFFIX    : Suffix to append to each line in READ_FROM. The text
+#               '<SEMI-COLON>' is replaced by an actual ';'.
+#
+# * Option parameters:
+#
+#   ESCAPE_QUOTES        : Escape double quotes (") in READ_FROM.
+#   PRESERVE_BLANK_LINES : Do not prepend/append to blank lines.
+#   SUB_CMD              : (Internal) Prepend an astrix to status lines.
+#
 function(process_file_surround)  # {{{*
 
     # parse arguments
     set(options ESCAPE_QUOTES PRESERVE_BLANK_LINES SUB_CMD)
-    set(oneValueArgs READ_FROM TOKEN PREFIX SUFFIX)
+    set(oneValueArgs READ_FROM VARIABLE PREFIX SUFFIX)
     set(multiValueArgs )
     cmake_parse_arguments(PFS "${options}"
                               "${oneValueArgs}"
@@ -85,8 +187,8 @@ function(process_file_surround)  # {{{*
     endif(${PFS_SUB_CMD})
 
     # replace SEMI-COLON by ; in suffix and prefix
-    string(REPLACE "SEMI-COLON" ";" PFS_SUFFIX "${PFS_SUFFIX}")
-    string(REPLACE "SEMI-COLON" ";" PFS_PREFIX "${PFS_PREFIX}")
+    string(REPLACE "<SEMI-COLON>" ";" PFS_SUFFIX "${PFS_SUFFIX}")
+    string(REPLACE "<SEMI-COLON>" ";" PFS_PREFIX "${PFS_PREFIX}")
 
     # read file
     set(lines )
@@ -117,7 +219,10 @@ function(process_file_surround)  # {{{*
     endforeach(line IN LISTS lines)
 
     # store to correct output
-    set(${PFS_TOKEN} "${processed}" PARENT_SCOPE)
+    set(${PFS_VARIABLE} "${processed}" PARENT_SCOPE)
 
 endfunction(process_file_surround)  # *}}}
+
+# *}}}
          
+# vim: fdm=marker:fmr="{{{*,*}}}":ts=4:sts=4:sw=4:et
